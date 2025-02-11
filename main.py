@@ -73,40 +73,55 @@ def main():
                 else:
                     filtered.sort(key=lambda x: x.user_ratings_total or 0, reverse=True)
 
-                for restaurant in filtered:
-                    with st.expander(f"🏠 {restaurant.name}"):
+            for restaurant in filtered:
+                with st.expander(f"🏠 {restaurant.name}"):
                         st.write(f"⭐ **Note:** {restaurant.rating}/5" if restaurant.rating else "⭐ Aucune note")
                         st.write(f"📍 {restaurant.address}")
                         st.write(f"📌 Type: {restaurant.primary_type}")
                         if restaurant.latest_review:
                             st.write(f"💬 Dernier avis: _{restaurant.latest_review}_")
-                        
-                        col_actions = st.columns(2)
+
+                        col_actions = st.columns(3)
+
                         with col_actions[0]:
                             if st.button("🗺️ Itinéraire", key=f"route_{restaurant.place_id}"):
                                 st.session_state.selected_route = restaurant
+
                         with col_actions[1]:
                             if st.button("❤️ Ajouter aux favoris", key=f"fav_{restaurant.place_id}"):
                                 if restaurant not in st.session_state.favorites:
                                     st.session_state.favorites.append(restaurant)
                                     st.success("Ajouté aux favoris!")
-                        
-                        st.markdown("---")
-                        # Saisie d'avis utilisateur
-                        user_review = st.text_area("Votre avis", key=f"review_input_{restaurant.place_id}", height=100)
-                        if st.button("Ajouter votre avis", key=f"add_review_{restaurant.place_id}"):
-                            if user_review.strip():
-                                if restaurant.place_id not in st.session_state.user_reviews:
-                                    st.session_state.user_reviews[restaurant.place_id] = []
-                                st.session_state.user_reviews[restaurant.place_id].append(user_review)
-                                st.success("Votre avis a été ajouté !")
-                        
+
+                        with col_actions[2]:
+                            st.markdown("### 📝 Ajouter un avis")
+                            user_review = st.text_area("Votre avis", key=f"review_input_{restaurant.place_id}", height=100)
+                            review_rating = st.slider("Note (0-5)", 0.0, 5.0, 3.0, 0.1, key=f"rating_{restaurant.place_id}")
+                            
+                            if st.button("Ajouter votre avis", key=f"add_review_{restaurant.place_id}"):
+                                if user_review.strip():
+                                    review_data = {
+                                        "restaurant": restaurant.name,
+                                        "review": user_review,
+                                        "rating": review_rating,
+                                        "date": datetime.now().strftime("%d/%m/%Y %H:%M")
+                                    }
+
+                                    if "reviews" not in st.session_state:
+                                        st.session_state.reviews = []
+                                    
+                                    st.session_state.reviews.append(review_data)
+                                    st.success("Votre avis a été ajouté et est visible dans votre profil !")
+
                         # Affichage des avis utilisateurs
-                        if restaurant.place_id in st.session_state.user_reviews and st.session_state.user_reviews[restaurant.place_id]:
-                            st.markdown("**Avis des utilisateurs :**")
-                            for ur in st.session_state.user_reviews[restaurant.place_id]:
-                                st.write(ur)
-            
+                        if "reviews" in st.session_state and st.session_state.reviews:
+                            resto_reviews = [r for r in st.session_state.reviews if r["restaurant"] == restaurant.name]
+                            if resto_reviews:
+                                st.markdown("**📢 Avis des utilisateurs :**")
+                                for rev in reversed(resto_reviews):
+                                    st.write(f"📅 {rev['date']} - **{rev['rating']}/5**")
+                                    st.info(f"💬 {rev['review']}")
+
             with cols[1]:
                 # Carte interactive affichant la position et les résultats
                 m = folium.Map(
